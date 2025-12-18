@@ -1,5 +1,6 @@
 import inspect
 import logging
+import os
 
 import re
 from functools import wraps
@@ -320,6 +321,9 @@ def _extract_oauth20_user_email(
     """
     Extract user email for OAuth 2.0 mode from function arguments.
 
+    Falls back to USER_GOOGLE_EMAIL environment variable if not provided
+    in function arguments, enabling single-user mode configuration.
+
     Args:
         args: Positional arguments passed to wrapper
         kwargs: Keyword arguments passed to wrapper
@@ -329,14 +333,21 @@ def _extract_oauth20_user_email(
         User email string
 
     Raises:
-        Exception: If user_google_email parameter not found
+        Exception: If user_google_email parameter not found and no env fallback
     """
-    bound_args = wrapper_sig.bind(*args, **kwargs)
+    bound_args = wrapper_sig.bind_partial(*args, **kwargs)
     bound_args.apply_defaults()
 
     user_google_email = bound_args.arguments.get("user_google_email")
     if not user_google_email:
-        raise Exception("'user_google_email' parameter is required but was not found.")
+        # Fall back to environment variable for single-user mode
+        user_google_email = os.getenv("USER_GOOGLE_EMAIL")
+    if not user_google_email:
+        raise Exception(
+            "Authentication required for this operation. "
+            "No valid 'user_google_email' provided. "
+            "Please provide a valid Google email address or set USER_GOOGLE_EMAIL environment variable."
+        )
     return user_google_email
 
 
